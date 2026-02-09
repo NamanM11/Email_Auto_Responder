@@ -1,97 +1,124 @@
 # Email Auto Responder Flow
 
-Welcome to the Email Auto Responder Flow project, powered by [crewAI](https://crewai.com). This example demonstrates how you can leverage Flows from crewAI to automate the process of checking emails and creating draft responses. By utilizing Flows, the process becomes much simpler and more efficient.
+This is my personal Email Auto Responder Flow project built on top of [crewAI](https://crewai.com).  
+It uses AI agents to continuously check my Gmail inbox, decide which emails need attention, and generate helpful draft replies for me.
 
-## Background
+> Note: This project is inspired by and based on the official crewAI email flow examples, but customized and maintained by me for my own workflow.
 
-In this project, we've taken one of our old example repositories, [CrewAI-LangGraph](https://github.com/crewAIInc/crewAI-examples/tree/main/CrewAI-LangGraph), and repurposed it to now use Flows. This showcases the power and simplicity of Flows in orchestrating AI agents to automate tasks like checking emails and creating drafts. Flows provide a more straightforward and powerful alternative to LangGraph, making it easier to build and manage complex workflows.
+## What this project does
 
-### High-Level Diagram
+- **Checks Gmail for new emails** on a schedule
+- **Filters and groups emails** that actually need attention
+- **Generates draft responses** using OpenAI models
+- **Runs in the background** so my inbox is always partially pre‑processed
 
-Below is a high-level diagram of the Email Auto Responder Flow:
+At a high level:
 
-![High-level Diagram](./Email_Flow.png)
+1. The flow fetches new emails via the Gmail API.
+2. It passes them through a crew of agents (`EmailFilterCrew`) that:
+   - Filter / prioritize messages
+   - Decide if action is required
+   - Draft responses using AI
+3. Draft responses are created so I can quickly review, edit, and send.
 
-This diagram illustrates the flow of tasks from fetching new emails to generating draft responses.
+## Tech stack
 
-## Overview
-
-This flow will guide you through the process of setting up an automated email responder. Here's a brief overview of what will happen in this flow:
-
-1. **Fetch New Emails**: The flow starts by using the `EmailFilterCrew` to check for new emails. It updates the state with any new emails and their IDs.
-
-2. **Generate Draft Responses**: Once new emails are fetched, the flow formats these emails and uses the `EmailFilterCrew` to generate draft responses for each email.
-
-This flow is a great example of using Flows as a background worker that runs continuously to help you out. By following this flow, you can efficiently automate the process of checking emails and generating draft responses, leveraging the power of multiple AI agents to handle different aspects of the email processing workflow.
+- **Python** (3.10–3.13)
+- **crewAI Flows**
+- **OpenAI (via `ChatOpenAI`)**
+- **Gmail API** (via `google-api-python-client` and LangChain community tools)
+- **Search tools**: Serper, Tavily
 
 ## Installation
 
-Ensure you have Python >=3.10 <=3.13 installed on your system. First, if you haven't already, install CrewAI:
+Make sure you have Python **>= 3.10 and <= 3.13** installed.
+
+Install the main library:
 
 ```bash
 pip install crewai==0.130.0
 ```
 
-Next, navigate to your project directory and install the dependencies:
-
-1. First lock the dependencies and then install them:
+Then, from the project root, install the dependencies:
 
 ```bash
 crewai install
 ```
 
-### Customizing & Dependencies
+Alternatively, you can use the `pyproject.toml` directly with your preferred tool (e.g. `uv`, `pip`, `pipx`, etc.).
 
-**Add your `OPENAI_API_KEY` into the `.env` file**  
-**Add your `SERPER_API_KEY` into the `.env` file**  
-**Add your `TAVILY_API_KEY` into the `.env` file**  
-**Add your `MY_EMAIL` into the `.env` file**
+## Environment variables
 
-To customize the behavior of the email auto responder, you can update the agents and tasks defined in the `EmailFilterCrew`. If you want to adjust the flow itself, you will need to modify the flow in `main.py`.
+Create a `.env` file in the project root and add:
 
-- **Agents and Tasks**: Modify `src/email_auto_responder_flow/crews/email_filter_crew/email_filter_crew.py` to define your agents and tasks. This is where you can customize how emails are filtered and how draft responses are generated.
+```env
+OPENAI_API_KEY=your_openai_api_key
+SERPER_API_KEY=your_serper_api_key
+TAVILY_API_KEY=your_tavily_api_key
+MY_EMAIL=your_gmail_address
+```
 
-- **Flow Adjustments**: Modify `src/email_auto_responder_flow/main.py` to adjust the flow. This is where you can change how the flow orchestrates the different crews and tasks.
+These values are required for:
 
-### Setting Up Google Credentials
+- `OPENAI_API_KEY`: powering the LLM that drafts responses
+- `SERPER_API_KEY` / `TAVILY_API_KEY`: search tools used by the agents
+- `MY_EMAIL`: used to avoid processing emails sent by myself
 
-To enable the email auto responder to access your Gmail account, you need to set up a `credentials.json` file. Follow these steps:
+## Gmail / Google API setup
 
-1. **Set Up Google Account**: Follow the [Google instructions](https://developers.google.com/gmail/api/quickstart/python#authorize_credentials_for_a_desktop_application) to set up your Google account and obtain the `credentials.json` file.
+To let the flow access your Gmail account:
 
-2. **Download and Place `credentials.json`**: Once you’ve downloaded the file, name it `credentials.json` and place it in the root of the project.
+1. Follow the official Gmail API Quickstart guide for Python:  
+   `https://developers.google.com/gmail/api/quickstart/python#authorize_credentials_for_a_desktop_application`
+2. Download the generated credentials file.
+3. Rename it to `credentials.json`.
+4. Place `credentials.json` in the **root** of this project.
 
-## Running the Project
+On the first run, Google will ask you to authorize access and will create a token file automatically for future runs.
 
-To kickstart your crew of AI agents and begin task execution, run this from the root folder of your project:
+## Running the flow
+
+From the root folder of the project, run:
 
 ```bash
 uv run kickoff
 ```
 
-This command initializes the email_auto_responder_flow, assembling the agents and assigning them tasks as defined in your configuration.
+This:
 
-When you kickstart the flow, it will orchestrate multiple crews to perform the tasks. The flow will first fetch new emails, then create and run a crew to generate draft responses.
+- Starts the `EmailAutoResponderFlow`
+- Checks for new emails
+- Uses the `EmailFilterCrew` to process them
+- Generates draft responses for any emails that require action
+- Sleeps for 180 seconds and repeats
 
-## Understanding Your Flow
+## Customizing the behavior
 
-The email_auto_responder_flow is composed of multiple AI agents, each with unique roles, goals, and tools. These agents collaborate on a series of tasks, defined in `config/tasks.yaml`, leveraging their collective skills to achieve complex objectives. The `config/agents.yaml` file outlines the capabilities and configurations of each agent in your flow.
+- **Agents and tasks**:  
+  Edit `src/email_auto_responder_flow/crews/email_filter_crew/email_filter_crew.py` and the configs in `config/agents.yaml` and `config/tasks.yaml` to change:
+  - How emails are filtered
+  - What “action required” means
+  - How responses are written
 
-### Flow Structure
+- **Flow logic**:  
+  Edit `src/email_auto_responder_flow/main.py` to:
+  - Change the polling interval (currently 180 seconds)
+  - Adjust the state model
+  - Add additional steps in the flow
 
-1. **EmailFilterCrew**: This crew is responsible for checking for new emails and updating the state with any new emails and their IDs.
+## Visualizing the flow
 
-2. **Generate Draft Responses**: Once new emails are fetched, this step formats the emails and uses the `EmailFilterCrew` to generate draft responses for each email.
+You can generate a diagram of the flow with:
 
-By understanding the flow structure, you can see how multiple crews are orchestrated to work together, each handling a specific part of the email processing workflow. This modular approach allows for efficient and scalable email automation.
+```bash
+uv run plot
+```
 
-## Support
+This helps to see how the different steps and agents are connected.
 
-For support, questions, or feedback regarding the Email Auto Responder Flow or crewAI:
+## Notes and credits
 
-- Visit our [documentation](https://docs.crewai.com)
-- Reach out to us through our [GitHub repository](https://github.com/joaomdmoura/crewai)
-- [Join our Discord](https://discord.com/invite/X4JWnZnxPb)
-- [Chat with our docs](https://chatg.pt/DWjSBZn)
+- Built and customized by me for my own email workflow.
+- Based on and inspired by the official crewAI email automation examples and documentation.
 
-Let's create wonders together with the power and simplicity of crewAI.
+For deeper crewAI docs and community resources, check `https://docs.crewai.com` and the official crewAI GitHub/Discord.
